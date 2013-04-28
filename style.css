@@ -45,14 +45,14 @@ h1,h2,h3,h4,h5,p{
 }
 
 h1,p{
-	margin: 6px auto;
+	margin: 3px auto;
 }
 
 .page .txt, .page .btn{
 	width: 80%;
 	margin: 10px auto;
 	display: block;
-	height: 20px;
+	height: 30px;
 	color: black;
 }
 

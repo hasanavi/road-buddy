@@ -27,8 +27,8 @@
 	    <p class='info'></p>
 	    <div id='pages'>
 	    	<div id='page1' class='page'>
-	    		<input type="text" placeholder="From" id='from' class='txt' />
-	    		<input type="text" placeholder="To" id='to' class='txt' />
+	    		<input type="text" placeholder="A Postcode" id='from' class='txt' />
+	    		<input type="text" placeholder="B Postcode" id='to' class='txt' />
 	    		<input type="button" value="Find Route" id='find-btn' class='btn' />
 	    	</div>
 	    	<div id='page2' class='page'>
@@ -347,7 +347,7 @@
 	    	 if(!isTapReleased){
 		    	$('.info').html("You are in danger!!! Tap again within 3 seconds to stop emergency contact");
 		    	tapTimer = setTimeout(function(){
-		    		alert('message sent to your emergency number')
+		    		alert('message sent to your emergency number');
 		    	},3000);
 	    	 }else{
 	    		 clearTimeout(tapTimer);
