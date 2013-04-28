@@ -45,7 +45,7 @@ h1,h2,h3,h4,h5,p{
 }
 
 h1,p{
-	margin: 10px auto;
+	margin: 6px auto;
 }
 
 .page .txt, .page .btn{
@@ -69,16 +69,33 @@ h1,p{
 	margin-left: 10%;
 }
 
-#saferRoute{
+#saferRoute, #ensureSafety{
 	width: 40%;
 	float: right;
 	margin-right: 10%;
+}
+
+#ensureSafety{
+	display: none;
 }
 
 #map-canvas{
 	width: 99%;
 	height: 300px;
 	border: 1px solid #FFF;
+}
+
+#tapArea{
+	width: 120px;
+	height: 120px;
+	border: 1px solid #FFF;
+	display: none;
+	background: #fc2e5a;
+	-moz-border-radius: 60px;
+	-webkit-border-radius: 60px;
+	border-radius: 60px;
+	position: relative;
+	margin: 10px auto;
 }
 
 .info{

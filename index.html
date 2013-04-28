@@ -29,12 +29,14 @@
 	    	<div id='page1' class='page'>
 	    		<input type="text" placeholder="From" id='from' class='txt' />
 	    		<input type="text" placeholder="To" id='to' class='txt' />
-	    		<input type="button" value="Find Safer Route" id='find-btn' class='btn' />
+	    		<input type="button" value="Find Route" id='find-btn' class='btn' />
 	    	</div>
 	    	<div id='page2' class='page'>
 	    		<div id="map-canvas"></div>
+	    		<div id='tapArea'></div>
 	    		<input type="button" value="Back" id='back-btn' class='btn' />
 	    		<input type="button" value="Show safer route" id='saferRoute' class='btn' />
+	    		<input type="button" value="Ensure safety" id='ensureSafety' class='btn' />
 	    	</div>
 	    </div>
     </div>
@@ -51,7 +53,9 @@
 		directionsDisplay,
 		directionsService = new google.maps.DirectionsService(),
 		map,
-		infoDisplayTime = 1000; //1s 
+		isTapReleased = false,
+		infoDisplayTime = 1000, //1s
+		tapTimer;
 	
 	YUI().use('node', 'event','transition','node-load', function (Y) {
 	    // The Node and Event modules are loaded and ready to use.
@@ -244,6 +248,8 @@
 						$('.info').html('Finding direction using google map');
 						$('#saferRoute').on('click',function(){
 							showMeTheRouteNow(true);
+							$(this).hide();
+							$('#ensureSafety').show();
 						});
 					}else{
 						fromLat = data.results[0].geometry.location.lat;
@@ -327,9 +333,29 @@
 	    		 },infoDisplayTime);
 	    		 
 	    	 }else{
-	    		 alert('empty field')
+	    		 alert('empty field');
 	    	 }
 	     });
+	     
+	     $('#ensureSafety').on('click',function(e){
+	    	$('#map-canvas, #tapArea').toggle();
+	    	$('.info').html('tap on the Red area when you think you are in danger');
+	    	$('#ensureSafety').hide();
+	     });
+	     
+	     $('#tapArea').on('click',function(e){
+	    	 if(!isTapReleased){
+		    	$('.info').html("You are in danger!!! Tap again within 3 seconds to stop emergency contact");
+		    	tapTimer = setTimeout(function(){
+		    		alert('message sent to your emergency number')
+		    	},3000);
+	    	 }else{
+	    		 clearTimeout(tapTimer);
+	    		 $('.info').html('tap on the Red area when you think you are in danger');
+	    	 }
+		    isTapReleased = !isTapReleased;
+		    
+		 });
 	});
 	</script>
   </body>
