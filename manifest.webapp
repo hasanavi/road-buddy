@@ -1,0 +1,18 @@
+{
+	"version" : "0.1",
+	"name" : "Road Buddy",
+	"Description" : "Help you to navigate safely",
+	"launch_path" : "/index.html",
+	"developer": {
+		"name" : "Hasan Azizul Haque",
+		"url" : "http://www.thisismovement.co.uk"
+	},
+	"permissions" : {
+		"geolocation" : {
+			"description" : "need it for accuracy"
+		},
+		"systemXHR" : {}
+	},
+	"installs_allowed_from": ["*"],
+	"type" : "privileged"
+}

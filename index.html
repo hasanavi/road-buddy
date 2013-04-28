@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+    <title>Road Buddy</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width">
+
+    <!-- Place favicon.ico in the root directory -->
+
+    <link rel="stylesheet" type="text/css" href="cssnormalize-min.css">
+	<link rel="stylesheet" type="text/css" href="cssbase-min.css">
+	
+    <link rel="stylesheet" type="text/css" href="style.css">
+    
+    <script src="yui-min.js"></script>
+    <script src="zepto.min.js"></script>
+    
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    
+  </head>
+  <body>
+  	<div id='container'>
+  		<h1>Road Buddy</h1>
+	    <h3>For safer routing</h3>
+	    <p class='info'></p>
+	    <div id='pages'>
+	    	<div id='page1' class='page'>
+	    		<input type="text" placeholder="From" id='from' class='txt' />
+	    		<input type="text" placeholder="To" id='to' class='txt' />
+	    		<input type="button" value="Find Safer Route" id='find-btn' class='btn' />
+	    	</div>
+	    	<div id='page2' class='page'>
+	    		<div id="map-canvas"></div>
+	    		<input type="button" value="Back" id='back-btn' class='btn' />
+	    		<input type="button" value="Show safer route" id='saferRoute' class='btn' />
+	    	</div>
+	    </div>
+    </div>
+    <script>
+	// Create a YUI sandbox on your page.
+	var curPage = 0,
+		fromLat = null,
+		fromLon = null,
+		toLat = null,
+		toLon = null,
+		isInApp = null,
+		fromPostcode = '',
+		toPostCode = '',
+		directionsDisplay,
+		directionsService = new google.maps.DirectionsService(),
+		map,
+		infoDisplayTime = 1000; //1s 
+	
+	YUI().use('node', 'event','transition','node-load', function (Y) {
+	    // The Node and Event modules are loaded and ready to use.
+	    // Your code goes here!
+	    
+	    
+		Y.one('#find-btn').on('click', function(e){
+			if($('#from').val().length > 0 && $('#to').val().length > 0){
+				 Y.one('#pages').transition({
+				        duration: .5, // seconds
+				        'left' : '-100%'
+				 }); 
+			}
+		});
+	    
+		Y.one('#back-btn').on('click', function(e){
+			 Y.one('#pages').transition({
+			        duration: .5, // seconds
+			        'left' : '0'
+			 });
+		});
+	});
+	
+	function checkIsFromPhone(){
+		var request = typeof window.navigator.mozApps == 'undefined' ? -1 : window.navigator.mozApps.getSelf();
+	    
+	    if(request == -1)
+	    	return false;
+	    
+		request.onsuccess = function(){
+			return request.result ? true : false;
+		 };
+		 request.onerror = function() {
+		    alert("Error: " + request.error.name);
+		    return false;
+		 };
+	}
+	
+	function calculateDistance(lat1, lon1, lat2, lon2, unit) {
+		    var radlat1 = Math.PI * lat1/180
+		    var radlat2 = Math.PI * lat2/180
+		    var radlon1 = Math.PI * lon1/180
+		    var radlon2 = Math.PI * lon2/180
+		    var theta = lon1-lon2
+		    var radtheta = Math.PI * theta/180
+		    var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+		    dist = Math.acos(dist)
+		    dist = dist * 180/Math.PI
+		    dist = dist * 60 * 1.1515
+		    if (unit=="K") { dist = dist * 1.609344 }
+		    if (unit=="N") { dist = dist * 0.8684 }
+		    return dist
+	}
+	
+	function calculateRiskFactor(steps, data){
+		//Awesomeness starts here ;) 
+		var distance;
+		var totRisk = 0;
+		for(var i = 0; i < steps.length; i++){
+			for(var j = 0; j < data.length; j++){
+				distance = calculateDistance(steps[i].lat,steps[i].lng,data[j].location.latitude,data[j].location.longitude,"K");
+				if(distance < .3)
+					totRisk++;
+			}
+		}
+		return totRisk;
+	}
+	
+	function filterData(data,crimeCat){
+		var filteredData = [];
+		for(var i = 0; i < data.length; i++){
+			if($.inArray(data[i].category, crimeCat) > -1)
+				filteredData.push(data[i]);
+		}
+		return filteredData;
+	}
+	
+	function checkSafestRoute(response){
+		var routePoints = [];
+		var safeTyIndex = []; // more is risky 
+		for(var i=0; i < response.routes.length; i++){
+			routePoints[i] = [];
+			for(var j = 0; j < response.routes[i].legs[0].steps.length; j++){
+				var lt = response.routes[i].legs[0].steps[j].start_location.jb;
+				var ln = response.routes[i].legs[0].steps[j].start_location.kb
+				routePoints[i].push({lat:lt, lng: ln});
+			}
+		}
+		setTimeout(function(){$('.info').html('Detecting Safest Route'),infoDisplayTime*1.5})
+		setTimeout(function(){$('.info').html('Obtaning Crime Result')},infoDisplayTime*2.5);
+		var url = "http://data.police.uk/api/crimes-street/all-crime?lat="+fromLat+"&lng="+fromLon;
+
+		var crimeCat = ['criminal-damage-arson','drugs','public-disorder-weapons','violent-crime'];
+		
+		var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		xhr.open('GET', url, true);
+		xhr.addEventListener('load', function(e) {
+			if (xhr.status == 200 || xhr.status == 0) {
+				var data = $.parseJSON(xhr.responseText);
+				data = filterData(data,crimeCat); //got the street crime data 
+
+				for(var i=0; i < response.routes.length; i++){
+					safeTyIndex[i] = calculateRiskFactor(routePoints[i],data);
+				}
+				
+				//console.log(safeTyIndex);
+				
+				var minVal = safeTyIndex[0];
+				var minIndex = 0;
+				for(var i = 1; i < safeTyIndex.length; i++){
+					if(safeTyIndex[i] < minVal){
+						minVal = safeTyIndex[i];
+						minIndex = i;
+					}
+				}
+				//console.log(JSON.stringify(response));
+				//set minimum risk at zero to show on map 
+				setTimeout(function(){$('.info').html('Plotting safest way')},infoDisplayTime*3);
+				response.routes[0] = response.routes[minIndex];
+	    		directionsDisplay.setDirections(response);
+			}
+		});
+		xhr.send(null);
+	}
+	
+	function showMeTheRouteNow(alternateRoute){
+		var fromLoc = new google.maps.LatLng(fromLat, fromLon);
+		var toLoc = new google.maps.LatLng(toLat, toLon);
+		var Mode = "WALKING";
+		
+		directionsDisplay = new google.maps.DirectionsRenderer();
+		  var mapOptions = {
+		    zoom: 14,
+		    mapTypeId: google.maps.MapTypeId.ROADMAP,
+		    center: fromLoc
+		  }
+		  
+		  map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+		  directionsDisplay.setMap(map);
+		  
+		  var request = {
+			      origin: fromLoc,
+			      destination: toLoc,
+			      // Note that Javascript allows us to access the constant
+			      // using square brackets and a string value as its
+			      // "property."
+			      travelMode: google.maps.TravelMode[Mode],
+			      provideRouteAlternatives: alternateRoute
+			};
+			directionsService.route(request, function(response, status) {
+			    if (status == google.maps.DirectionsStatus.OK) {
+			    	setTimeout(function(){$('.info').html('Obtaining Alternate route'),infoDisplayTime});
+			    	if(response.routes.length <= 1){
+			    		setTimeout(function(){$('.info').html('Shortest Distance, Googles default'),infoDisplayTime*2})
+			    		directionsDisplay.setDirections(response);
+			    	}else{
+			    		//Now the clever part... check safest route 
+			    		//console.log(response)
+			    		checkSafestRoute(response); //check which route is safest and return the index 
+			    	}
+			    }else{
+			    	alert('sorry alternate direction service Error')
+			    }
+			});
+		
+		/* var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		 xhr.open('GET', 'http://data.police.uk/api/crime-categories?date=2013-02', true);
+		 xhr.addEventListener('load', function(e) {
+			 if (xhr.status == 200 || xhr.status == 0) {
+				 console.log(xhr.responseText);
+			 }
+		 });
+		 xhr.send(null); */
+	}
+	
+	function postcodeToLatLng(postCode){
+		var url = "http://maps.googleapis.com/maps/api/geocode/json?address="+postCode+",UK&sensor=true";
+		
+		var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		xhr.open('GET', url, true);
+		xhr.addEventListener('load', function(e) {
+			if (xhr.status == 200 || xhr.status == 0) {
+				var data = $.parseJSON(xhr.responseText);
+				if(data.status == "OK"){
+					toLat = data.results[0].geometry.location.lat;
+					toLon = data.results[0].geometry.location.lng;
+
+					setTimeout(function(){showMeTheRouteNow(false);},infoDisplayTime);
+					$('.info').html('Finding direction using google map');
+					$('#saferRoute').on('click',function(){
+						showMeTheRouteNow(true);
+					});
+				}else
+					alert("Google Maps Post to Lat Lng Convert Error");
+			}
+		});
+		xhr.send(null);
+	}
+	
+	function latLngToPostCode(lat,lon){
+		var pocd = '';
+		var url ='http://maps.googleapis.com/maps/api/geocode/json?latlng='+lat+','+lon+'&sensor=true';
+		
+		var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		xhr.open('GET', url, true);
+		xhr.addEventListener('load', function(e) {
+			if (xhr.status == 200 || xhr.status == 0) {
+				var data = $.parseJSON(xhr.responseText);
+				if(data.status == "OK"){
+					var addressComponents;
+					var post_codes = [];
+					for(i = 0; i < data.results.length; i++){
+						address_components = data.results[i];
+						$.each(address_components["address_components"],function(i,obj){
+							if(obj["types"][0] == 'postal_code'){
+								post_codes.push(obj["long_name"]);
+							}	
+						});
+					}
+					
+					$.each(post_codes, function(i,postcode){
+						pocd = postcode.length > pocd ? postcode : pocd;
+					});
+					fromPostcode = pocd;
+		    		$('#from').val(fromPostcode);
+		    		$('.info').html('');
+				}else{
+					alert('google maps lat long to post code convert error');
+				}
+			}
+		});
+		xhr.send(null);
+	}
+	
+	$(function() {
+	    isInApp = checkIsFromPhone();
+	    
+		if(navigator.geolocation){
+	    	navigator.geolocation.getCurrentPosition(function(position){
+	    		fromLat = position.coords.latitude;
+	    		fromLon = position.coords.longitude;
+	    		$('.info').html('Obtaning Postcode from Lat Lon');
+	    		setTimeout(function(){latLngToPostCode(fromLat, fromLon);},infoDisplayTime);
+	    	},handle_errors, { enableHighAccuracy: true, timeout: 5000,maximumAge: 0});
+	    	
+	    	/*
+	    	navigator.geolocation.watchPosition(function(position){
+	    		fromLat = position.coords.latitude;
+	    		fromLon = position.coords.longitude;
+	    		alert(fromLat+' '+fromLon);
+	    	},handle_errors, { enableHighAccuracy: true, timeout: 5000,maximumAge: 0};);
+	    	*/
+	    }else{
+	    	alert('geolocation not supported');
+	    }
+	     
+	    function handle_errors(error){alert('ERROR(' + error.code + '): ' + error.message);}
+	    
+	     $('#find-btn').on('click',function(e){
+	    	 if($('#from').val().length > 0 && $('#to').val().length > 0){
+	    		 toPostCode = $('#to').val();
+	    		 $('.info').html('Converting Postcode to Lat Lon');
+	    		 setTimeout(function(){postcodeToLatLng(toPostCode)},infoDisplayTime);
+	    		 
+	    	 }else{
+	    		 alert('empty field')
+	    	 }
+	     });
+	});
+	</script>
+  </body>
+</html>

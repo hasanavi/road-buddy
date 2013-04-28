@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+    <title>Road Buddy</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width">
+
+    <!-- Place favicon.ico in the root directory -->
+
+    <link rel="stylesheet" type="text/css" href="cssnormalize-min.css">
+	<link rel="stylesheet" type="text/css" href="cssbase-min.css">
+	
+    <link rel="stylesheet" type="text/css" href="style.css">
+    
+    <script src="yui-min.js"></script>
+    <script src="zepto.min.js"></script>
+    
+  </head>
+  <body>
+  	<div id='container'>
+  		<h1>Road Buddy</h1>
+	    <h3>For safer routing</h3>
+	    <div id='pages'>
+	    	<div id='page1' class='page'>
+	    		<input type="text" placeholder="From" id='from' class='txt' />
+	    		<input type="text" placeholder="To" id='to' class='txt' />
+	    		<input type="button" value="Find Safer Route" id='find-btn' class='btn' />
+	    	</div>
+	    	<div id='page2' class='page'>
+	    		<!-- <div id='map-canvas'></div> -->
+	    		<!-- Firefox OS Map display support test -->
+	    		<!-- iframe doesn't work -->
+	    		<!-- <iframe width="250" height="300" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.co.uk/maps?f=d&amp;source=s_d&amp;saddr=N1+6NG&amp;daddr=London+E2+8DY&amp;hl=en&amp;geocode=FQhAEgMdWsf-_ykn2M_6uhx2SDHhQ39H05ZQdA%3BFWVTEgMdqNP-_ynJuTgEvBx2SDGwhqpqCbN_nQ&amp;aq=0&amp;oq=E2+8DY&amp;sll=52.8382,-2.327815&amp;sspn=7.581013,23.225098&amp;t=w&amp;dirflg=w&amp;mra=ls&amp;ie=UTF8&amp;ll=51.53016,-0.078617&amp;spn=0.004938,0.003124&amp;output=embed"></iframe><br /><small><a href="https://maps.google.co.uk/maps?f=d&amp;source=embed&amp;saddr=N1+6NG&amp;daddr=London+E2+8DY&amp;hl=en&amp;geocode=FQhAEgMdWsf-_ykn2M_6uhx2SDHhQ39H05ZQdA%3BFWVTEgMdqNP-_ynJuTgEvBx2SDGwhqpqCbN_nQ&amp;aq=0&amp;oq=E2+8DY&amp;sll=52.8382,-2.327815&amp;sspn=7.581013,23.225098&amp;t=w&amp;dirflg=w&amp;mra=ls&amp;ie=UTF8&amp;ll=51.53016,-0.078617&amp;spn=0.004938,0.003124" style="color:#0000FF;text-align:left">View Larger Map</a></small> -->
+	    		
+	    		<input type="button" value="Back" id='back-btn' class='btn' />
+	    	</div>
+	    </div>
+    </div>
+    <script>
+	// Create a YUI sandbox on your page.
+	var curPage = 0,
+		fromLat = null,
+		fromLon = null,
+		toLat = null,
+		toLon = null,
+		isInApp = null,
+		fromPostcode = '',
+		toPostCode = ''
+	
+	YUI().use('node', 'event','transition','node-load', function (Y) {
+	    // The Node and Event modules are loaded and ready to use.
+	    // Your code goes here!
+	    
+	    
+		Y.one('#find-btn').on('click', function(e){
+			if($('#from').val().length > 0 && $('#to').val().length > 0){
+				 Y.one('#pages').transition({
+				        duration: .5, // seconds
+				        'left' : '-100%'
+				 }); 
+			}
+		});
+	    
+		Y.one('#back-btn').on('click', function(e){
+			 Y.one('#pages').transition({
+			        duration: .5, // seconds
+			        'left' : '0'
+			 });
+		});
+	});
+	
+	function checkIsFromPhone(){
+		var request = typeof window.navigator.mozApps == 'undefined' ? -1 : window.navigator.mozApps.getSelf();
+	    
+	    if(request == -1)
+	    	return false;
+	    
+		request.onsuccess = function(){
+			return request.result ? true : false;
+		 };
+		 request.onerror = function() {
+		    alert("Error: " + request.error.name);
+		    return false;
+		 };
+	}
+	
+	function showMeTheRouteNow(){
+		var Mode = "WALKING";
+		var fromAddress = fromPostcode.replace(" ","") + ',UK';
+		var toAddress = toPostCode.replace(" ","") + ',UK';
+		
+		var url = "http://maps.googleapis.com/maps/api/directions/json?origin="+fromAddress+"&destination="+toAddress+"&sensor=true&mode="+Mode;
+		console.log(url);
+		
+		/* var img = new Image();
+	    img.src = "http://maps.googleapis.com/maps/api/staticmap?center=" + toLat + "," + toLon + "&zoom=13&size=300x300&sensor=true";
+	    document.getElementById("map-canvas").appendChild(img); */
+		
+		/* var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		 xhr.open('GET', 'http://data.police.uk/api/crime-categories?date=2013-02', true);
+		 xhr.addEventListener('load', function(e) {
+			 if (xhr.status == 200 || xhr.status == 0) {
+				 console.log(xhr.responseText);
+			 }
+		 });
+		 xhr.send(null); */
+	}
+	
+	function postcodeToLatLng(postCode){
+		var url = "http://maps.googleapis.com/maps/api/geocode/json?address="+postCode+",UK&sensor=true";
+		
+		var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		xhr.open('GET', url, true);
+		xhr.addEventListener('load', function(e) {
+			if (xhr.status == 200 || xhr.status == 0) {
+				var data = $.parseJSON(xhr.responseText);
+				if(data.status == "OK"){
+					toLat = data.results[0].geometry.location.lat;
+					toLon = data.results[0].geometry.location.lng;
+					
+					showMeTheRouteNow();
+				}else
+					alert("Google Maps Post to Lat Lng Convert Error");
+			}
+		});
+		xhr.send(null);
+	}
+	
+	function latLngToPostCode(lat,lon){
+		var pocd = '';
+		var url ='http://maps.googleapis.com/maps/api/geocode/json?latlng='+lat+','+lon+'&sensor=true';
+		
+		var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
+		xhr.open('GET', url, true);
+		xhr.addEventListener('load', function(e) {
+			if (xhr.status == 200 || xhr.status == 0) {
+				var data = $.parseJSON(xhr.responseText);
+				if(data.status == "OK"){
+					var addressComponents;
+					var post_codes = [];
+					for(i = 0; i < data.results.length; i++){
+						address_components = data.results[i];
+						$.each(address_components["address_components"],function(i,obj){
+							if(obj["types"][0] == 'postal_code'){
+								post_codes.push(obj["long_name"]);
+							}	
+						});
+					}
+					
+					$.each(post_codes, function(i,postcode){
+						pocd = postcode.length > pocd ? postcode : pocd;
+					});
+					fromPostcode = pocd;
+		    		$('#from').val(fromPostcode);
+				}else{
+					alert('google maps lat long to post code convert error');
+				}
+			}
+		});
+		xhr.send(null);
+	}
+	
+	$(function() {
+	    isInApp = checkIsFromPhone();
+	    
+		if(navigator.geolocation){
+	    	navigator.geolocation.getCurrentPosition(function(position){
+	    		fromLat = position.coords.latitude;
+	    		fromLon = position.coords.longitude;
+	    		latLngToPostCode(fromLat, fromLon);
+	    	},handle_errors, { enableHighAccuracy: true, timeout: 5000,maximumAge: 0});
+	    	
+	    	/*
+	    	navigator.geolocation.watchPosition(function(position){
+	    		fromLat = position.coords.latitude;
+	    		fromLon = position.coords.longitude;
+	    		alert(fromLat+' '+fromLon);
+	    	},handle_errors, { enableHighAccuracy: true, timeout: 5000,maximumAge: 0};);
+	    	*/
+	    }else{
+	    	alert('geolocation not supported');
+	    }
+	     
+	    function handle_errors(error){alert('ERROR(' + error.code + '): ' + error.message);}
+	    
+	     $('#find-btn').on('click',function(e){
+	    	 if($('#from').val().length > 0 && $('#to').val().length > 0){
+	    		 toPostCode = $('#to').val();
+	    		 postcodeToLatLng(toPostCode);
+	    		 
+	    	 }else{
+	    		 alert('empty field')
+	    	 }
+	     });
+	});
+	</script>
+  </body>
+</html>
