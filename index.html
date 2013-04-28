@@ -23,7 +23,7 @@
   <body>
   	<div id='container'>
   		<h1>Road Buddy</h1>
-	    <h3>For safer routing</h3>
+	    <h3>Reach your destination safely</h3>
 	    <p class='info'></p>
 	    <div id='pages'>
 	    	<div id='page1' class='page'>
@@ -227,7 +227,7 @@
 		 xhr.send(null); */
 	}
 	
-	function postcodeToLatLng(postCode){
+	function postcodeToLatLng(postCode,isToPostcode){
 		var url = "http://maps.googleapis.com/maps/api/geocode/json?address="+postCode+",UK&sensor=true";
 		
 		var xhr = new XMLHttpRequest({mozAnon: true, mozSystem: true});
@@ -236,14 +236,19 @@
 			if (xhr.status == 200 || xhr.status == 0) {
 				var data = $.parseJSON(xhr.responseText);
 				if(data.status == "OK"){
-					toLat = data.results[0].geometry.location.lat;
-					toLon = data.results[0].geometry.location.lng;
-
-					setTimeout(function(){showMeTheRouteNow(false);},infoDisplayTime);
-					$('.info').html('Finding direction using google map');
-					$('#saferRoute').on('click',function(){
-						showMeTheRouteNow(true);
-					});
+					if(isToPostcode){
+						toLat = data.results[0].geometry.location.lat;
+						toLon = data.results[0].geometry.location.lng;
+						
+						setTimeout(function(){showMeTheRouteNow(false);},infoDisplayTime);
+						$('.info').html('Finding direction using google map');
+						$('#saferRoute').on('click',function(){
+							showMeTheRouteNow(true);
+						});
+					}else{
+						fromLat = data.results[0].geometry.location.lat;
+						fromLon = data.results[0].geometry.location.lng;
+					}
 				}else
 					alert("Google Maps Post to Lat Lng Convert Error");
 			}
@@ -313,8 +318,13 @@
 	     $('#find-btn').on('click',function(e){
 	    	 if($('#from').val().length > 0 && $('#to').val().length > 0){
 	    		 toPostCode = $('#to').val();
+	    		 fromPostcode = $('#from').val();
 	    		 $('.info').html('Converting Postcode to Lat Lon');
-	    		 setTimeout(function(){postcodeToLatLng(toPostCode)},infoDisplayTime);
+	    		 setTimeout(function(){
+	    			 console.log(fromPostcode);
+	    			 postcodeToLatLng(fromPostcode,false);
+	    			 postcodeToLatLng(toPostCode,true);
+	    		 },infoDisplayTime);
 	    		 
 	    	 }else{
 	    		 alert('empty field')
